@@ -17,6 +17,7 @@ export interface PurchaseLine {
   stShipSn: string;
   lineNo: number;
   productName: string;
+  productCode: string;
   model: string;
   qty: number;
   policyAmount: number;

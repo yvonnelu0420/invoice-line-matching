@@ -1,4 +1,4 @@
-/** 金蝶采购单号：KDCG + YYMMDD + 4 位当日流水。同一打包共用一号；解绑不回收号段。 */
+/** 金蝶采购单号：KDCG + YYMMDD + 4 位当日流水。同一张发票或一次未配行下推共用一号；解绑不回收号段。 */
 export function nextKingdeePoNo(existing: string[], now = new Date()): string {
   const yy = String(now.getFullYear()).slice(-2);
   const m = String(now.getMonth() + 1).padStart(2, "0");
@@ -16,5 +16,5 @@ export function nextKingdeePoNo(existing: string[], now = new Date()): string {
 export const PO_NO_RULE = {
   pattern: "KDCG + YYMMDD + 4位流水",
   example: "KDCG2608190001",
-  note: "按自然日全组织递增；同一张发票或一次未配行打包共用一号；一次勾选多张票则拆成多个单号；解绑后原号作废不复用。",
+  note: "按自然日全组织递增；同一张发票或一次未配行下推共用一号；勾选多张票则拆成多个单号并下推；已成功单号跳过；解绑后原号作废不复用。",
 };

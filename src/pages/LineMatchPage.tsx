@@ -13,15 +13,18 @@ function invoiceRecommend(inv: Invoice, selected: PurchaseLine[]) {
   const first = selected[0];
   if (!first) return "";
   const sos = parseSoNos(inv.memo);
-  if (inv.supplierKind === "suhao" && inv.memo.includes(first.stShipSn)) return "Y2 命中";
+  if (inv.supplierKind === "suhao" && selected.some((l) => l.stShipSn && inv.memo.includes(l.stShipSn))) {
+    return "Y2 命中";
+  }
   if (
     inv.supplierKind === "mitsubishi" &&
     sos.length &&
     selected.some((l) => l.supplierOrderNo && sos.includes(l.supplierOrderNo.toUpperCase()))
-  )
+  ) {
     return `SO 命中 ${sos.length} 个`;
-  if (inv.supplierKind !== "suhao" && inv.buyer === first.salesCompany && inv.seller === first.supplier) {
-    return inv.supplierKind === "mitsubishi" && sos.length ? "购销方（SO未命中单据）" : "购销方命中";
+  }
+  if (inv.supplierKind === "other" && inv.buyer === first.salesCompany && inv.seller === first.supplier) {
+    return "购销方命中";
   }
   return "";
 }
@@ -92,7 +95,6 @@ export function LineMatchPage() {
     supplier: "",
     salesCompany: "all",
     invoiceNo: "",
-    match: "all",
     invHead: "all",
     kingdeePo: "",
     productNames: [] as string[],
@@ -112,10 +114,12 @@ export function LineMatchPage() {
       if (!contains(l.supplier, q.supplier)) return false;
       if (q.salesCompany !== "all" && l.salesCompany !== q.salesCompany) return false;
       if (!contains(l.invoiceNo, q.invoiceNo)) return false;
-      if (q.match === "matched" && l.matchStatus !== "matched") return false;
-      if (q.match === "unmatched" && l.matchStatus !== "unmatched") return false;
-      if (q.invHead !== "all") {
-        if (!l.invoiceId || s.invoiceStatus(l.invoiceId) !== q.invHead) return false;
+      if (q.invHead === "full") {
+        if (!l.invoiceId || s.invoiceStatus(l.invoiceId) !== "full") return false;
+      } else if (q.invHead === "partial") {
+        if (!l.invoiceId || s.invoiceStatus(l.invoiceId) !== "partial") return false;
+      } else if (q.invHead === "unmatched") {
+        if (l.invoiceId && s.invoiceStatus(l.invoiceId) !== "unmatched") return false;
       }
       if (!contains(l.kingdeePoNo, q.kingdeePo)) return false;
       if (q.productNames.length && !q.productNames.includes(l.productName)) return false;
@@ -149,17 +153,11 @@ export function LineMatchPage() {
         <button className="btn ghost" onClick={s.unbindInvoice} disabled={!s.selected.length}>
           解绑发票
         </button>
-        <button className="btn green" onClick={s.pack} disabled={!s.selected.length}>
-          打包金蝶采购单
-        </button>
         <button className="btn green" onClick={s.pushPo} disabled={!s.selected.length}>
-          确认下推金蝶
-        </button>
-        <button className="btn danger" onClick={s.unbindPack} disabled={!s.selected.length}>
-          解绑打包
+          采购单下推金蝶
         </button>
         <button className="btn orange" onClick={s.runApJob}>
-          模拟应付单定时任务
+          应付单下推金蝶
         </button>
         <button className="btn ghost" onClick={() => setOpenHelp(true)}>
           单号规则
@@ -171,16 +169,16 @@ export function LineMatchPage() {
         </span>
       </div>
       <div className="hint">
-        勾选：有发票则带出该票全部明细；无发票但有金蝶采购单号则带出该单全部明细。可同时勾多组，打包按票拆单，确认下推按金蝶采购单号拆分。发票明细全部匹配成功后，该票占用的采购行会自动打成一个金蝶采购单。应付未推送成功前可解绑并重新匹配发票（采购已下推不影响改票）。应付单由定时任务按金蝶采购单整单下推：无发票则跳过不推送、不报异常；发票不一致则推送异常。
+        勾选：有发票则带出该票全部占用行（可跨 CDN）；无发票只勾本行。可同时勾多组。点「采购单下推金蝶」：有发票按票各生成一个金蝶采购单号并下推；无发票的勾选行打成一个单号并下推；混合勾选则票拆多单、无票合一单。已推送成功的单号跳过。应付未推送成功前可解绑并重新匹配发票（采购已下推不影响改票）。应付单下推：无发票或部分匹配则跳过不报异常；同一金蝶采购订单多个发票号则推送异常。
       </div>
       <div className="demo">
         <span className="chip">人工核对：勾 CDN202608200051 → 匹配发票，弹窗看备注/明细产品与数量后配 INV-J</span>
         <span className="chip">场景：P1–P3 苏豪未匹配（用 INV-A / Y260819KT0024）</span>
-        <span className="chip">三菱合并开票：勾 CDN140001 任一行 → 匹配 INV-G（两 SO）</span>
-        <span className="chip">三菱拆分开票：CDN130001 先配 INV-H 再配 INV-I（同一 SO）</span>
-        <span className="chip">三菱备注无 SO：P11/P12 走原购销方（INV-F）</span>
-        <span className="chip">INV-B 已按两 SO 合并匹配（两张 CDN）</span>
-        <span className="chip">KDCG2608160003 未推送可解绑</span>
+        <span className="chip">三菱多 SO：勾 CDN140001 和 CDN140002 → 配 INV-G（先到先占用）</span>
+        <span className="chip">三菱同一 SO：CDN130001 先配 INV-H，剩余再配 INV-I</span>
+        <span className="chip">三菱备注无 SO：本迭代不走购销方（先不做）</span>
+        <span className="chip">INV-B 已占用两张 CDN（两 SO）</span>
+        <span className="chip">无发票：勾 P11 只选本行；可再勾 P12 后一起下推，复用 KDCG2608160003</span>
         <span className="chip">KDCG2608150001 发票不一致 → 应付异常</span>
       </div>
       <div className="filters">
@@ -212,20 +210,12 @@ export function LineMatchPage() {
           <input value={q.invoiceNo} onChange={(e) => setQ({ ...q, invoiceNo: e.target.value })} placeholder="数电发票号码" />
         </div>
         <div className="field">
-          <label>行匹配</label>
-          <select value={q.match} onChange={(e) => setQ({ ...q, match: e.target.value })}>
-            <option value="all">全部</option>
-            <option value="unmatched">未匹配</option>
-            <option value="matched">已匹配</option>
-          </select>
-        </div>
-        <div className="field">
           <label>发票匹配</label>
           <select value={q.invHead} onChange={(e) => setQ({ ...q, invHead: e.target.value })}>
             <option value="all">全部</option>
-            <option value="unmatched">未匹配</option>
-            <option value="partial">部分匹配</option>
             <option value="full">全部匹配</option>
+            <option value="partial">部分匹配</option>
+            <option value="unmatched">未匹配</option>
           </select>
         </div>
         <div className="field">
@@ -237,7 +227,7 @@ export function LineMatchPage() {
           <BatchExactInput value={q.productNames} onChange={(productNames) => setQ({ ...q, productNames })} />
         </div>
         <div className="field">
-          <label>采购下推</label>
+          <label>采购单下推</label>
           <select value={q.poPush} onChange={(e) => setQ({ ...q, poPush: e.target.value })}>
             <option value="all">全部</option>
             <option value="unsent">未推送</option>
@@ -246,7 +236,7 @@ export function LineMatchPage() {
           </select>
         </div>
         <div className="field">
-          <label>应付下推</label>
+          <label>应付单下推</label>
           <select value={q.apPush} onChange={(e) => setQ({ ...q, apPush: e.target.value })}>
             <option value="all">全部</option>
             <option value="none">未推送</option>
@@ -262,21 +252,22 @@ export function LineMatchPage() {
               <th />
               <th>采购送货单号</th>
               <th>供应商订单号</th>
-              <th>行</th>
+              <th>行号</th>
+              <th>产品编号</th>
               <th>产品名称</th>
-              <th>型号</th>
-              <th>数量</th>
-              <th>政策价</th>
+              <th>产品型号</th>
+              <th>实际采购数量</th>
+              <th>采购政策价</th>
               <th>供应商</th>
               <th>销售公司</th>
               <th>行匹配</th>
               <th>发票号</th>
               <th>发票匹配</th>
-              <th>开票含税</th>
-              <th>费用</th>
+              <th>采购开票价</th>
+              <th>使用费用</th>
               <th>金蝶采购单号</th>
-              <th>采购下推</th>
-              <th>应付下推</th>
+              <th>采购推送状态</th>
+              <th>应付推送状态</th>
             </tr>
           </thead>
           <tbody>
@@ -288,6 +279,7 @@ export function LineMatchPage() {
                 <td>{l.cdnSn}</td>
                 <td>{l.supplierOrderNo || "—"}</td>
                 <td>{l.lineNo}</td>
+                <td>{l.productCode}</td>
                 <td>{l.productName}</td>
                 <td>{l.model}</td>
                 <td>{l.qty}</td>
@@ -317,7 +309,7 @@ export function LineMatchPage() {
       {openMatch && (
         <Modal title="按行匹配进项发票" wide onClose={() => setOpenMatch(false)}>
           <p style={{ color: "#6b7785", marginTop: 0 }}>
-            请对照下方采购行与发票明细的产品名称、型号、数量，以及发票备注（苏豪 Y2 / 三菱 SO）后再确认。确认后按型号+数量占用发票行并回写金额；发票明细全部匹配后自动打包一个金蝶采购单。
+            请对照下方采购行与发票明细的产品名称、型号、数量，以及发票备注后再确认。苏豪看 Y2，三菱看 SO，其他物优家看购销方。确认后按型号+数量先到先占用并回写金额；下推金蝶时再按票生成采购单号。
           </p>
           <div className="match-sub">本次勾选采购行</div>
           <div className="table-wrap" style={{ maxHeight: 140 }}>
