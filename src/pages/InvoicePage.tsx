@@ -60,8 +60,8 @@ export function InvoicePage() {
                   <th>数量</th>
                   <th>不含税</th>
                   <th>税额</th>
-                  <th>含税</th>
-                  <th>费用</th>
+                  <th>开票金额</th>
+                  <th>费用金额</th>
                   <th>匹配采购送货单</th>
                   <th>采购行</th>
                 </tr>

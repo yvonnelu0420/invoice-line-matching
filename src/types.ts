@@ -24,6 +24,8 @@ export interface PurchaseLine {
   supplierKind: SupplierKind;
   salesCompany: string;
   purchaseType: "直采" | "随单采";
+  /** 供应商订单号（三菱 SO，对应采购订单 f_as_purchase_no） */
+  supplierOrderNo?: string;
   salesShipSn?: string;
   customer?: string;
   invoiceId?: string;
@@ -68,4 +70,21 @@ export interface Toast {
   id: number;
   text: string;
   tone: "ok" | "warn" | "err" | "info";
+}
+
+export interface SalesOutLine {
+  id: string;
+  salesShipSn: string;
+  productName: string;
+  productCode: string;
+  model: string;
+  shipQty: number;
+  returnQty: number;
+  actualQty: number;
+  shipTime: string;
+  feeAmount: number;
+  unitPrice: number;
+  amount: number;
+  warehouseCode: string;
+  warehouseName: string;
 }

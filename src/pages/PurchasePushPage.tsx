@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../store";
-import { ApTag, MatchTag, money, PoTag } from "../ui";
+import { aggApPush, aggPoPush, ApTag, HeadPushTag, MatchTag, money, PoTag } from "../ui";
 
 export function PurchasePushPage() {
   const s = useStore();
@@ -18,7 +18,16 @@ export function PurchasePushPage() {
       const pos = [...new Set(lines.map((x) => x.kingdeePoNo).filter(Boolean))];
       const headMatch: "unmatched" | "partial" | "full" =
         matched === 0 ? "unmatched" : matched === lines.length ? "full" : "partial";
-      return { cdn, lines, invs, pos, headMatch, first: lines[0] };
+      return {
+        cdn,
+        lines,
+        invs,
+        pos,
+        headMatch,
+        poPush: aggPoPush(lines),
+        apPush: aggApPush(lines),
+        first: lines[0],
+      };
     });
   }, [s.lines]);
   const detail = headers.find((h) => h.cdn === open);
@@ -62,6 +71,14 @@ export function PurchasePushPage() {
               <div>
                 <label>金蝶采购单号</label>
                 {detail.pos.join("、") || "—"}
+              </div>
+              <div>
+                <label>采购推送状态</label>
+                <HeadPushTag v={detail.poPush} />
+              </div>
+              <div>
+                <label>应付推送状态</label>
+                <HeadPushTag v={detail.apPush} />
               </div>
             </div>
           </div>
@@ -117,6 +134,8 @@ export function PurchasePushPage() {
                 <th>匹配（明细）</th>
                 <th>关联发票号</th>
                 <th>金蝶采购单号</th>
+                <th>采购推送状态</th>
+                <th>应付推送状态</th>
                 <th />
               </tr>
             </thead>
@@ -133,6 +152,12 @@ export function PurchasePushPage() {
                   </td>
                   <td>{h.invs.join("、") || "—"}</td>
                   <td>{h.pos.join("、") || "—"}</td>
+                  <td>
+                    <HeadPushTag v={h.poPush} />
+                  </td>
+                  <td>
+                    <HeadPushTag v={h.apPush} />
+                  </td>
                   <td>
                     <button className="btn ghost" onClick={() => setOpen(h.cdn)}>
                       查看

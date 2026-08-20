@@ -1,4 +1,20 @@
-import type { ApPushStatus, InvoiceMatchStatus, PoPushStatus } from "./types";
+import type { ApPushStatus, InvoiceMatchStatus, PoPushStatus, PurchaseLine } from "./types";
+
+export type HeadPushStatus = "none" | "partial" | "full";
+
+export function aggPoPush(lines: PurchaseLine[]): HeadPushStatus {
+  const n = lines.filter((l) => l.poPushStatus === "success").length;
+  if (n === 0) return "none";
+  if (n === lines.length) return "full";
+  return "partial";
+}
+
+export function aggApPush(lines: PurchaseLine[]): HeadPushStatus {
+  const n = lines.filter((l) => l.apPushStatus === "success").length;
+  if (n === 0) return "none";
+  if (n === lines.length) return "full";
+  return "partial";
+}
 
 export function money(n?: number) {
   if (n == null) return "—";
@@ -18,10 +34,20 @@ export function MatchTag({ v }: { v: InvoiceMatchStatus | "matched" | "unmatched
 
 export function PoTag({ v }: { v: PoPushStatus }) {
   const map = {
-    none: ["未打包", "gray"],
+    none: ["未推送", "gray"],
     unsent: ["未推送", "orange"],
     success: ["推送成功", "green"],
     fail: ["推送失败", "red"],
+  } as const;
+  const [t, c] = map[v];
+  return <span className={`tag ${c}`}>{t}</span>;
+}
+
+export function HeadPushTag({ v }: { v: HeadPushStatus }) {
+  const map = {
+    none: ["未推送", "gray"],
+    partial: ["部分推送", "orange"],
+    full: ["全部推送", "green"],
   } as const;
   const [t, c] = map[v];
   return <span className={`tag ${c}`}>{t}</span>;
@@ -41,14 +67,16 @@ export function Modal({
   title,
   children,
   onClose,
+  wide,
 }: {
   title: string;
   children: import("react").ReactNode;
   onClose: () => void;
+  wide?: boolean;
 }) {
   return (
     <div className="modal-mask" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className={wide ? "modal wide" : "modal"} onClick={(e) => e.stopPropagation()}>
         <h3>{title}</h3>
         {children}
       </div>

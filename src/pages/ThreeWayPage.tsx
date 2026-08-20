@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../store";
-import { ApTag, MatchTag, money, PoTag } from "../ui";
+import { aggApPush, aggPoPush, ApTag, HeadPushTag, MatchTag, money, PoTag } from "../ui";
 
 export function ThreeWayPage() {
   const s = useStore();
@@ -25,10 +25,17 @@ export function ThreeWayPage() {
         invs: [...new Set(lines.map((x) => x.invoiceNo).filter(Boolean))],
         pos: [...new Set(lines.map((x) => x.kingdeePoNo).filter(Boolean))],
         headMatch,
+        poPush: aggPoPush(lines),
+        apPush: aggApPush(lines),
       };
     });
   }, [s.lines]);
   const detail = headers.find((h) => h.cdn === open);
+  const salesRows = detail
+    ? s.salesOutLines.filter((r) => r.salesShipSn === detail.first.salesShipSn)
+    : [];
+  const salesAmt = salesRows.reduce((a, b) => a + b.amount, 0);
+  const salesFee = salesRows.reduce((a, b) => a + b.feeAmount, 0);
 
   return (
     <div className="panel">
@@ -93,6 +100,14 @@ export function ThreeWayPage() {
                 {detail.invs.join("、") || "—"}
               </div>
               <div>
+                <label>采购推送状态</label>
+                <HeadPushTag v={detail.poPush} />
+              </div>
+              <div>
+                <label>应付推送状态</label>
+                <HeadPushTag v={detail.apPush} />
+              </div>
+              <div>
                 <label>销售单推金蝶</label>
                 {salesPush[detail.cdn] === "success" ? "推送成功" : "未推送"}
               </div>
@@ -133,6 +148,61 @@ export function ThreeWayPage() {
               </tbody>
             </table>
           </div>
+          <div className="section">
+            <h4>销售出库明细</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th>产品名称</th>
+                  <th>产品编号</th>
+                  <th>产品型号</th>
+                  <th>发货数量</th>
+                  <th>退货数量</th>
+                  <th>实际发货数量</th>
+                  <th>发货时间</th>
+                  <th>销售费用金额</th>
+                  <th>销售单价(政策价)</th>
+                  <th>销售总金额(政策价)</th>
+                  <th>发货仓编码</th>
+                  <th>发货仓名称</th>
+                </tr>
+              </thead>
+              <tbody>
+                {salesRows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.productName}</td>
+                    <td>{r.productCode}</td>
+                    <td>{r.model}</td>
+                    <td>{r.shipQty}</td>
+                    <td>{r.returnQty || "—"}</td>
+                    <td>{r.actualQty}</td>
+                    <td>{r.shipTime}</td>
+                    <td>{money(r.feeAmount)}</td>
+                    <td>{money(r.unitPrice)}</td>
+                    <td>{money(r.amount)}</td>
+                    <td>{r.warehouseCode}</td>
+                    <td>{r.warehouseName}</td>
+                  </tr>
+                ))}
+                {salesRows.length > 0 && (
+                  <tr>
+                    <td colSpan={7}>合计</td>
+                    <td>{money(salesFee)}</td>
+                    <td />
+                    <td>{money(salesAmt)}</td>
+                    <td colSpan={2} />
+                  </tr>
+                )}
+                {salesRows.length === 0 && (
+                  <tr>
+                    <td colSpan={12} style={{ color: "#6b7785" }}>
+                      暂无销售出库明细
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <div className="table-wrap">
@@ -145,6 +215,8 @@ export function ThreeWayPage() {
                 <th>采购匹配</th>
                 <th>关联发票</th>
                 <th>金蝶采购单</th>
+                <th>采购推送</th>
+                <th>应付推送</th>
                 <th>销售推金蝶</th>
                 <th />
               </tr>
@@ -160,6 +232,12 @@ export function ThreeWayPage() {
                   </td>
                   <td>{h.invs.join("、") || "—"}</td>
                   <td>{h.pos.join("、") || "—"}</td>
+                  <td>
+                    <HeadPushTag v={h.poPush} />
+                  </td>
+                  <td>
+                    <HeadPushTag v={h.apPush} />
+                  </td>
                   <td>{salesPush[h.cdn] === "success" ? "推送成功" : "未推送"}</td>
                   <td>
                     <button className="btn ghost" onClick={() => setOpen(h.cdn)}>
