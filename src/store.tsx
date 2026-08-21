@@ -10,11 +10,13 @@ import { nextKingdeePoNo } from "./poNo";
 import type {
   ApPushStatus,
   Invoice,
+  InvoiceLine,
   InvoiceMatchStatus,
   PageId,
   PoPushStatus,
   PurchaseLine,
   SalesOutLine,
+  SupplierKind,
   Toast,
 } from "./types";
 
@@ -198,11 +200,132 @@ const seedLines: PurchaseLine[] = [
   { id: "P18", cdnSn: "CDN202608130001", orderSn: "LGCX202608130001", stShipSn: "Y260813MH0008", supplierOrderNo: "SO-260813-008-Q", lineNo: 2, productName: "室内机_FDUM50", productCode: "A01835050", model: "FDUM50KXE6F", qty: 1, policyAmount: 1980, supplier: MHI, supplierKind: "mitsubishi", salesCompany: BJ, purchaseType: "直采", matchStatus: "unmatched", poPushStatus: "none", apPushStatus: "none" },
 ];
 
+const SUPPLIER_CODE: Record<SupplierKind, string> = {
+  suhao: "00001001",
+  mitsubishi: "00002001",
+  other: "00003001",
+};
+
+const SELLER_TAX: Record<SupplierKind, string> = {
+  suhao: "91320000739411231X",
+  mitsubishi: "91310000664322156Q",
+  other: "91440300789456123K",
+};
+
+const BUYER_TAX: Record<string, string> = {
+  [BJ]: "91110108MA01B2C3D4",
+  [CD]: "91510100MA62K3L4M5",
+  [SZ]: "91440300MA5N6P7Q8R",
+};
+
+const WAREHOUSE: Record<string, { code: string; name: string }> = {
+  [BJ]: { code: "011001", name: "北京菱感仓" },
+  [CD]: { code: "051001", name: "成都菱感仓" },
+  [SZ]: { code: "075501", name: "深圳菱感仓" },
+};
+
+function customerCodeOf(name?: string) {
+  if (!name) return "";
+  let n = 0;
+  for (let i = 0; i < name.length; i++) n = (n * 33 + name.charCodeAt(i)) >>> 0;
+  return `ST${String(n).padStart(14, "0").slice(-14)}`;
+}
+
+function hydrateInvoiceLine(il: InvoiceLine): InvoiceLine {
+  const feeIncl = il.feeIncl ?? il.feeAmount;
+  const feeTax = il.feeTax ?? (il.feeAmount ? Number(((il.feeAmount * 0.13) / 1.13).toFixed(2)) : 0);
+  return {
+    ...il,
+    unit: il.unit || "台",
+    unitPriceExcl: il.unitPriceExcl ?? Number((il.amountExcl / il.qty).toFixed(2)),
+    taxRate: il.taxRate ?? 13,
+    productName: il.productName || il.name,
+    productCode: il.productCode || "",
+    feeIncl,
+    feeTax,
+  };
+}
+
+const INVOICE_DAY: Record<string, string> = {
+  "INV-A": "2026-08-19",
+  "INV-B": "2026-08-18",
+  "INV-C": "2026-08-17",
+  "INV-D": "2026-08-17",
+  "INV-E": "2026-08-10",
+  "INV-F": "2026-08-16",
+  "INV-G": "2026-08-14",
+  "INV-H": "2026-08-13",
+  "INV-I": "2026-08-13",
+  "INV-J": "2026-08-20",
+};
+
+function hydrateInvoices(invoices: Invoice[]): Invoice[] {
+  return invoices.map((inv) => {
+    const lines = inv.lines.map(hydrateInvoiceLine);
+    const amountExcl = inv.amountExcl ?? Number(lines.reduce((a, b) => a + b.amountExcl, 0).toFixed(2));
+    const tax = inv.tax ?? Number(lines.reduce((a, b) => a + b.tax, 0).toFixed(2));
+    const day = inv.invoiceDate || INVOICE_DAY[inv.id] || "2026-08-18";
+    return {
+      ...inv,
+      lines,
+      amountExcl,
+      tax,
+      invoiceCode: inv.invoiceCode ?? "",
+      paperNo: inv.paperNo ?? inv.digitalNo.slice(-8),
+      sellerTaxNo: inv.sellerTaxNo || SELLER_TAX[inv.supplierKind],
+      buyerTaxNo: inv.buyerTaxNo || BUYER_TAX[inv.buyer] || "91110000MA0000000X",
+      invoiceDate: day,
+      invoiceKind: inv.invoiceKind || "电子发票",
+      invoiceStatus: inv.invoiceStatus || "正常",
+      isPositive: inv.isPositive ?? inv.totalIncl >= 0,
+      createdBy: inv.createdBy || "陆怡雯",
+      createdAt: inv.createdAt || `${day} 09:12:00`,
+      updatedBy: inv.updatedBy || "陆怡雯",
+      updatedAt: inv.updatedAt || `${day} 09:12:00`,
+    };
+  });
+}
+
+function stampFromCdn(cdn: string, hour = 10) {
+  const m = cdn.match(/^CDN(\d{4})(\d{2})(\d{2})/);
+  if (!m) return "";
+  return `${m[1]}-${m[2]}-${m[3]} ${String(hour).padStart(2, "0")}:00:00`;
+}
+
+function nowStamp(d = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function hydrateLines(lines: PurchaseLine[]): PurchaseLine[] {
+  return lines.map((l) => {
+    const wh = WAREHOUSE[l.salesCompany] || { code: "011001", name: "北京菱感仓" };
+    const shipTime = l.shipTime || stampFromCdn(l.cdnSn, 10);
+    return {
+      ...l,
+      supplierCode: l.supplierCode || SUPPLIER_CODE[l.supplierKind],
+      shipTime,
+      matchedBy: l.matchStatus === "matched" ? l.matchedBy || "陆怡雯" : l.matchedBy,
+      matchedAt: l.matchStatus === "matched" ? l.matchedAt || stampFromCdn(l.cdnSn, 16) : l.matchedAt,
+      warehouseCode: l.warehouseCode || wh.code,
+      warehouseName: l.warehouseName || wh.name,
+      returnQty: l.returnQty ?? 0,
+      remark: l.remark || "",
+      customerCode: l.customerCode || customerCodeOf(l.customer),
+      salesOrderSn: l.salesOrderSn || (l.purchaseType === "随单采" ? l.orderSn.replace(/^LGCX/, "LGXS") : l.orderSn),
+      shipSourceSn: l.shipSourceSn || customerCodeOf(l.customer),
+      orderType: l.orderType || "标品订单",
+    };
+  });
+}
+
 const seedSalesOut: SalesOutLine[] = [
   { id: "S1", salesShipSn: "DF202608190107", productName: "三菱空调机_FDC224KXMEN1Q", productCode: "A01835555", model: "FDC224KXMEN1Q", shipQty: 1, returnQty: 0, actualQty: 1, shipTime: "2026-08-19 16:21:35", feeAmount: 0, unitPrice: 15555, amount: 15555, warehouseCode: "011001", warehouseName: "北京菱感仓" },
   { id: "S2", salesShipSn: "DF202608190107", productName: "三菱空调机_FDUCV18KXME1Q-D", productCode: "A01835616", model: "FDUCV18KXME1Q-D", shipQty: 2, returnQty: 0, actualQty: 2, shipTime: "2026-08-19 16:21:35", feeAmount: 0, unitPrice: 2013, amount: 4026, warehouseCode: "011001", warehouseName: "北京菱感仓" },
   { id: "S3", salesShipSn: "DF202608190107", productName: "有线遥控器_RC-MBD2", productCode: "A01290064", model: "RC-MBD2", shipQty: 6, returnQty: 0, actualQty: 6, shipTime: "2026-08-19 16:21:35", feeAmount: 0, unitPrice: 213.5, amount: 1281, warehouseCode: "011001", warehouseName: "北京菱感仓" },
   { id: "S4", salesShipSn: "DF202608100022", productName: "全热交换器_SAFHD350BQ", productCode: "A01855991", model: "SAFHD350BQ", shipQty: 1, returnQty: 0, actualQty: 1, shipTime: "2026-08-10 11:06:20", feeAmount: 0, unitPrice: 4410, amount: 4410, warehouseCode: "011001", warehouseName: "北京菱感仓" },
+  { id: "S5", salesShipSn: "DF202608200051", productName: "三菱空调机_FDTC32KXE6F", productCode: "A01836532", model: "FDTC32KXE6F", shipQty: 2, returnQty: 0, actualQty: 2, shipTime: "2026-08-20 15:08:11", feeAmount: 0, unitPrice: 4480, amount: 8960, warehouseCode: "011001", warehouseName: "北京菱感仓" },
+  { id: "S6", salesShipSn: "DF202608200051", productName: "无线遥控器_PAR-31MAA-RC", productCode: "A01290110", model: "PAR-31MAA-RC", shipQty: 2, returnQty: 0, actualQty: 2, shipTime: "2026-08-20 15:08:11", feeAmount: 80, unitPrice: 520, amount: 1040, warehouseCode: "011001", warehouseName: "北京菱感仓" },
 ];
 
 interface State {
@@ -344,6 +467,8 @@ function reducer(state: State, action: Action): State {
           taxAmount: hit.il.tax,
           totalAmount: hit.il.amountIncl,
           feeAmount: hit.il.feeAmount,
+          matchedBy: "陆怡雯",
+          matchedAt: nowStamp(),
         };
       });
       const invoices = syncInvoiceLinks(state.invoices, lines);
@@ -380,6 +505,8 @@ function reducer(state: State, action: Action): State {
           totalAmount: undefined,
           feeAmount: undefined,
           apPushStatus: "none" as ApPushStatus,
+          matchedBy: undefined,
+          matchedAt: undefined,
         };
       });
       return toast(
@@ -510,8 +637,8 @@ const StoreCtx = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     page: "line-match",
-    lines: seedLines,
-    invoices: seedInvoices,
+    lines: hydrateLines(seedLines),
+    invoices: hydrateInvoices(seedInvoices),
     selected: [],
     toasts: [],
     toastSeq: 0,

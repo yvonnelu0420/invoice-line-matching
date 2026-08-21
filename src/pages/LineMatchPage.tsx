@@ -135,6 +135,16 @@ export function LineMatchPage() {
   const selectedInv = [...new Set(selectedLines.map((l) => l.invoiceId).filter(Boolean))];
   const selectedPos = [...new Set(selectedLines.map((l) => l.kingdeePoNo).filter(Boolean))];
   const matchInvoices = s.invoices.filter((inv) => s.invoiceStatus(inv.id) !== "full");
+  const cdnAmount = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of s.lines) map.set(l.cdnSn, (map.get(l.cdnSn) || 0) + l.policyAmount);
+    return map;
+  }, [s.lines]);
+  const invoiceMemo = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const inv of s.invoices) map.set(inv.id, inv.memo);
+    return map;
+  }, [s.invoices]);
 
   return (
     <div className="panel">
@@ -251,6 +261,14 @@ export function LineMatchPage() {
             <tr>
               <th />
               <th>采购送货单号</th>
+              <th>采购订单号</th>
+              <th>采购发货时间</th>
+              <th>采购类型</th>
+              <th>供应商</th>
+              <th>供应商编号</th>
+              <th>销售公司</th>
+              <th>单据金额</th>
+              <th>舜天发货单号</th>
               <th>供应商订单号</th>
               <th>行号</th>
               <th>产品编号</th>
@@ -258,16 +276,18 @@ export function LineMatchPage() {
               <th>产品型号</th>
               <th>实际采购数量</th>
               <th>采购政策价</th>
-              <th>供应商</th>
-              <th>销售公司</th>
               <th>行匹配</th>
               <th>发票号</th>
               <th>发票匹配</th>
+              <th>开票状态</th>
               <th>采购开票价</th>
               <th>使用费用</th>
               <th>金蝶采购单号</th>
               <th>采购推送状态</th>
               <th>应付推送状态</th>
+              <th>匹配时间</th>
+              <th>匹配人</th>
+              <th>发票备注</th>
             </tr>
           </thead>
           <tbody>
@@ -277,6 +297,14 @@ export function LineMatchPage() {
                   <input type="checkbox" checked={s.selected.includes(l.id)} onChange={() => s.toggle(l.id)} />
                 </td>
                 <td>{l.cdnSn}</td>
+                <td>{l.orderSn}</td>
+                <td>{l.shipTime || "—"}</td>
+                <td>{l.purchaseType}</td>
+                <td title={l.supplier}>{l.supplier}</td>
+                <td>{l.supplierCode || "—"}</td>
+                <td>{l.salesCompany.replace("菱感电子商务（", "").replace("）有限公司", "")}</td>
+                <td>{money(cdnAmount.get(l.cdnSn))}</td>
+                <td>{l.stShipSn || "—"}</td>
                 <td>{l.supplierOrderNo || "—"}</td>
                 <td>{l.lineNo}</td>
                 <td>{l.productCode}</td>
@@ -284,13 +312,12 @@ export function LineMatchPage() {
                 <td>{l.model}</td>
                 <td>{l.qty}</td>
                 <td>{money(l.policyAmount)}</td>
-                <td title={l.supplier}>{l.supplierKind === "suhao" ? "苏豪" : l.supplierKind === "mitsubishi" ? "三菱重工" : "其他物优家"}</td>
-                <td>{l.salesCompany.replace("菱感电子商务（", "").replace("）有限公司", "")}</td>
                 <td>
                   <MatchTag v={l.matchStatus} />
                 </td>
                 <td>{l.invoiceNo || "—"}</td>
                 <td>{l.invoiceId ? <MatchTag v={s.invoiceStatus(l.invoiceId)} /> : "—"}</td>
+                <td>{l.matchStatus === "matched" ? "已开票" : "未开票"}</td>
                 <td>{money(l.totalAmount)}</td>
                 <td>{money(l.feeAmount)}</td>
                 <td>{l.kingdeePoNo || "—"}</td>
@@ -299,6 +326,11 @@ export function LineMatchPage() {
                 </td>
                 <td>
                   <ApTag v={l.apPushStatus} />
+                </td>
+                <td>{l.matchedAt || "—"}</td>
+                <td>{l.matchedBy || "—"}</td>
+                <td title={l.invoiceId ? invoiceMemo.get(l.invoiceId) : undefined}>
+                  {l.invoiceId ? invoiceMemo.get(l.invoiceId) || "—" : "—"}
                 </td>
               </tr>
             ))}

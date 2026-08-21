@@ -25,10 +25,21 @@ export interface PurchaseLine {
   supplierKind: SupplierKind;
   salesCompany: string;
   purchaseType: "直采" | "随单采";
+  supplierCode?: string;
+  /** 采购发货时间 */
+  shipTime?: string;
   /** 供应商订单号（三菱 SO，对应采购订单 f_as_purchase_no） */
   supplierOrderNo?: string;
   salesShipSn?: string;
   customer?: string;
+  customerCode?: string;
+  salesOrderSn?: string;
+  shipSourceSn?: string;
+  orderType?: "标品订单" | "赠品订单";
+  warehouseCode?: string;
+  warehouseName?: string;
+  returnQty?: number;
+  remark?: string;
   invoiceId?: string;
   invoiceNo?: string;
   invoiceLineId?: string;
@@ -40,6 +51,8 @@ export interface PurchaseLine {
   poPushStatus: PoPushStatus;
   apPushStatus: ApPushStatus;
   matchStatus: LineMatchStatus;
+  matchedAt?: string;
+  matchedBy?: string;
 }
 
 export interface InvoiceLine {
@@ -54,6 +67,13 @@ export interface InvoiceLine {
   amountIncl: number;
   feeAmount: number;
   purchaseLineId?: string;
+  unit?: string;
+  unitPriceExcl?: number;
+  taxRate?: number;
+  productName?: string;
+  productCode?: string;
+  feeTax?: number;
+  feeIncl?: number;
 }
 
 export interface Invoice {
@@ -65,6 +85,20 @@ export interface Invoice {
   memo: string;
   supplierKind: SupplierKind;
   lines: InvoiceLine[];
+  invoiceCode?: string;
+  paperNo?: string;
+  sellerTaxNo?: string;
+  buyerTaxNo?: string;
+  invoiceDate?: string;
+  invoiceKind?: string;
+  invoiceStatus?: "正常" | "已红冲" | "已作废";
+  isPositive?: boolean;
+  amountExcl?: number;
+  tax?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export interface Toast {
@@ -88,4 +122,9 @@ export interface SalesOutLine {
   amount: number;
   warehouseCode: string;
   warehouseName: string;
+  invoiceUnitPrice?: number;
+  invoiceAmount?: number;
+  batchNo?: string;
+  remark?: string;
+  salesOrderSn?: string;
 }
