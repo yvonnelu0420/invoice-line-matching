@@ -25,6 +25,9 @@ export interface PurchaseLine {
   supplierKind: SupplierKind;
   salesCompany: string;
   purchaseType: "直采" | "随单采";
+  supplierCode?: string;
+  /** 采购发货时间 */
+  shipTime?: string;
   /** 供应商订单号（三菱 SO，对应采购订单 f_as_purchase_no） */
   supplierOrderNo?: string;
   salesShipSn?: string;
@@ -40,6 +43,8 @@ export interface PurchaseLine {
   poPushStatus: PoPushStatus;
   apPushStatus: ApPushStatus;
   matchStatus: LineMatchStatus;
+  matchedAt?: string;
+  matchedBy?: string;
 }
 
 export interface InvoiceLine {

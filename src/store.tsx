@@ -15,6 +15,7 @@ import type {
   PoPushStatus,
   PurchaseLine,
   SalesOutLine,
+  SupplierKind,
   Toast,
 } from "./types";
 
@@ -198,6 +199,33 @@ const seedLines: PurchaseLine[] = [
   { id: "P18", cdnSn: "CDN202608130001", orderSn: "LGCX202608130001", stShipSn: "Y260813MH0008", supplierOrderNo: "SO-260813-008-Q", lineNo: 2, productName: "室内机_FDUM50", productCode: "A01835050", model: "FDUM50KXE6F", qty: 1, policyAmount: 1980, supplier: MHI, supplierKind: "mitsubishi", salesCompany: BJ, purchaseType: "直采", matchStatus: "unmatched", poPushStatus: "none", apPushStatus: "none" },
 ];
 
+const SUPPLIER_CODE: Record<SupplierKind, string> = {
+  suhao: "00001001",
+  mitsubishi: "00002001",
+  other: "00003001",
+};
+
+function stampFromCdn(cdn: string, hour = 10) {
+  const m = cdn.match(/^CDN(\d{4})(\d{2})(\d{2})/);
+  if (!m) return "";
+  return `${m[1]}-${m[2]}-${m[3]} ${String(hour).padStart(2, "0")}:00:00`;
+}
+
+function nowStamp(d = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function hydrateLines(lines: PurchaseLine[]): PurchaseLine[] {
+  return lines.map((l) => ({
+    ...l,
+    supplierCode: l.supplierCode || SUPPLIER_CODE[l.supplierKind],
+    shipTime: l.shipTime || stampFromCdn(l.cdnSn, 10),
+    matchedBy: l.matchStatus === "matched" ? l.matchedBy || "陆怡雯" : l.matchedBy,
+    matchedAt: l.matchStatus === "matched" ? l.matchedAt || stampFromCdn(l.cdnSn, 16) : l.matchedAt,
+  }));
+}
+
 const seedSalesOut: SalesOutLine[] = [
   { id: "S1", salesShipSn: "DF202608190107", productName: "三菱空调机_FDC224KXMEN1Q", productCode: "A01835555", model: "FDC224KXMEN1Q", shipQty: 1, returnQty: 0, actualQty: 1, shipTime: "2026-08-19 16:21:35", feeAmount: 0, unitPrice: 15555, amount: 15555, warehouseCode: "011001", warehouseName: "北京菱感仓" },
   { id: "S2", salesShipSn: "DF202608190107", productName: "三菱空调机_FDUCV18KXME1Q-D", productCode: "A01835616", model: "FDUCV18KXME1Q-D", shipQty: 2, returnQty: 0, actualQty: 2, shipTime: "2026-08-19 16:21:35", feeAmount: 0, unitPrice: 2013, amount: 4026, warehouseCode: "011001", warehouseName: "北京菱感仓" },
@@ -344,6 +372,8 @@ function reducer(state: State, action: Action): State {
           taxAmount: hit.il.tax,
           totalAmount: hit.il.amountIncl,
           feeAmount: hit.il.feeAmount,
+          matchedBy: "陆怡雯",
+          matchedAt: nowStamp(),
         };
       });
       const invoices = syncInvoiceLinks(state.invoices, lines);
@@ -380,6 +410,8 @@ function reducer(state: State, action: Action): State {
           totalAmount: undefined,
           feeAmount: undefined,
           apPushStatus: "none" as ApPushStatus,
+          matchedBy: undefined,
+          matchedAt: undefined,
         };
       });
       return toast(
@@ -510,7 +542,7 @@ const StoreCtx = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     page: "line-match",
-    lines: seedLines,
+    lines: hydrateLines(seedLines),
     invoices: seedInvoices,
     selected: [],
     toasts: [],
