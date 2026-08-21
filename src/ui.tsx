@@ -21,6 +21,15 @@ export function money(n?: number) {
   return n.toLocaleString("zh-CN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+export function BinaryMatchTag({ v }: { v: "matched" | "unmatched" }) {
+  return v === "matched" ? <span className="tag green">已匹配</span> : <span className="tag gray">未匹配</span>;
+}
+
+export function InvoicingTag({ v }: { v: string }) {
+  const map: Record<string, string> = { 未开票: "gray", 已开票: "green", 开票红冲: "orange", 开票退货: "red" };
+  return <span className={`tag ${map[v] || "gray"}`}>{v}</span>;
+}
+
 export function MatchTag({ v }: { v: InvoiceMatchStatus | "matched" | "unmatched" }) {
   const map = {
     unmatched: ["未匹配", "gray"],

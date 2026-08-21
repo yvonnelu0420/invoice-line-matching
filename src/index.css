@@ -185,6 +185,47 @@ tr.picked td { background: #e8f0ff; }
 .section { margin-top: 16px; }
 .section h4 { margin: 0 0 8px; font-size: 13px; color: var(--blue); }
 .kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; }
+.kv-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.subtabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  height: 36px;
+  align-items: center;
+}
+.subtabs button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.subtabs button.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+.pane-nav {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.pane-nav button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.pane-nav button.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+.cell-ellipsis {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.empty-regular { padding: 48px 16px; color: var(--muted); text-align: center; }
+.filter-actions { display: flex; align-items: flex-end; gap: 8px; }
 .kv div { border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
 .kv label { display: block; color: var(--muted); font-size: 12px; }
 .demo { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
